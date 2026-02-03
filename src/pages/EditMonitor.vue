@@ -40,6 +40,7 @@
                                         <option value="json-query">HTTP(s) - {{ $t("Json Query") }}</option>
                                         <option value="grpc-keyword">gRPC(s) - {{ $t("Keyword") }}</option>
                                         <option value="dns">DNS</option>
+                                        <option value="domain-expiry">{{ $t("Domain Expiry") }}</option>
                                         <option value="docker">
                                             {{ $t("Docker Container") }}
                                         </option>
@@ -440,6 +441,7 @@
                                     monitor.type === 'port' ||
                                     monitor.type === 'ping' ||
                                     monitor.type === 'dns' ||
+                                    monitor.type === 'domain-expiry' ||
                                     monitor.type === 'steam' ||
                                     monitor.type === 'gamedig' ||
                                     monitor.type === 'mqtt' ||

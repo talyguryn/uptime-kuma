@@ -58,6 +58,33 @@
             <h5 class="my-4 settings-subheading">{{ $t("settingsCertificateExpiry") }}</h5>
             <p>{{ $t("certificationExpiryDescription") }}</p>
             <p>{{ $t("notificationDescription") }}</p>
+            <div class="my-3 form-check">
+                <input
+                    id="tlsExpiryThresholdEnabled"
+                    v-model="tlsExpiryThresholdEnabled"
+                    type="checkbox"
+                    class="form-check-input"
+                />
+                <label class="form-check-label" for="tlsExpiryThresholdEnabled">
+                    {{ $t("Enable single threshold notification") }}
+                </label>
+            </div>
+            <div v-if="tlsExpiryThresholdEnabled" class="my-3 col-12 col-xl-3">
+                <label for="tlsExpiryThreshold" class="form-label">
+                    {{ $t("Notify if expires within") }}
+                </label>
+                <div class="input-group">
+                    <input
+                        id="tlsExpiryThreshold"
+                        v-model="tlsExpiryThreshold"
+                        type="number"
+                        class="form-control"
+                        min="1"
+                        step="1"
+                    />
+                    <span class="input-group-text">{{ $t("days", 1) }}</span>
+                </div>
+            </div>
             <div class="mt-1 mb-3 ps-2 cert-exp-days col-12 col-xl-6">
                 <div
                     v-for="day in settings.tlsExpiryNotifyDays"
@@ -96,6 +123,33 @@
             <h5 class="my-4 settings-subheading">{{ $t("settingsDomainExpiry") }}</h5>
             <p>{{ $t("domainExpiryDescription") }}</p>
             <p>{{ $t("notificationDescription") }}</p>
+            <div class="my-3 form-check">
+                <input
+                    id="domainExpiryThresholdEnabled"
+                    v-model="domainExpiryThresholdEnabled"
+                    type="checkbox"
+                    class="form-check-input"
+                />
+                <label class="form-check-label" for="domainExpiryThresholdEnabled">
+                    {{ $t("Enable single threshold notification") }}
+                </label>
+            </div>
+            <div v-if="domainExpiryThresholdEnabled" class="my-3 col-12 col-xl-3">
+                <label for="domainExpiryThreshold" class="form-label">
+                    {{ $t("Notify if expires within") }}
+                </label>
+                <div class="input-group">
+                    <input
+                        id="domainExpiryThreshold"
+                        v-model="domainExpiryThreshold"
+                        type="number"
+                        class="form-control"
+                        min="1"
+                        step="1"
+                    />
+                    <span class="input-group-text">{{ $t("days", 1) }}</span>
+                </div>
+            </div>
             <div class="mt-1 mb-3 ps-2 cert-exp-days col-12 col-xl-6">
                 <div
                     v-for="day in settings.domainExpiryNotifyDays"
@@ -153,6 +207,10 @@ export default {
              */
             tlsExpiryNotifInput: null,
             domainExpiryNotifInput: null,
+            tlsExpiryThresholdEnabled: false,
+            tlsExpiryThreshold: 14,
+            domainExpiryThresholdEnabled: false,
+            domainExpiryThreshold: 14,
         };
     },
 
@@ -182,10 +240,29 @@ export default {
                 localStorage.toastErrorTimeout = newTimeout > 0 ? newTimeout * 1000 : newTimeout;
             }
         },
+        tlsExpiryThresholdEnabled(newValue) {
+            this.settings.tlsExpiryThresholdEnabled = newValue;
+        },
+        tlsExpiryThreshold(newValue) {
+            const parsedValue = parseInt(newValue);
+            if (parsedValue != null && !Number.isNaN(parsedValue) && parsedValue > 0) {
+                this.settings.tlsExpiryThreshold = parsedValue;
+            }
+        },
+        domainExpiryThresholdEnabled(newValue) {
+            this.settings.domainExpiryThresholdEnabled = newValue;
+        },
+        domainExpiryThreshold(newValue) {
+            const parsedValue = parseInt(newValue);
+            if (parsedValue != null && !Number.isNaN(parsedValue) && parsedValue > 0) {
+                this.settings.domainExpiryThreshold = parsedValue;
+            }
+        },
     },
 
     mounted() {
         this.loadToastTimeoutSettings();
+        this.loadExpiryThresholdSettings();
     },
 
     methods: {
@@ -247,6 +324,25 @@ export default {
                         this.domainExpiryNotifInput = null;
                     }
                 }
+            }
+        },
+
+        /**
+         * Loads expiry threshold settings from parent settings.
+         * @returns {void}
+         */
+        loadExpiryThresholdSettings() {
+            if (this.settings.tlsExpiryThresholdEnabled !== undefined) {
+                this.tlsExpiryThresholdEnabled = this.settings.tlsExpiryThresholdEnabled;
+            }
+            if (this.settings.tlsExpiryThreshold !== undefined) {
+                this.tlsExpiryThreshold = this.settings.tlsExpiryThreshold;
+            }
+            if (this.settings.domainExpiryThresholdEnabled !== undefined) {
+                this.domainExpiryThresholdEnabled = this.settings.domainExpiryThresholdEnabled;
+            }
+            if (this.settings.domainExpiryThreshold !== undefined) {
+                this.domainExpiryThreshold = this.settings.domainExpiryThreshold;
             }
         },
 

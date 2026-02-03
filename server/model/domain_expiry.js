@@ -6,64 +6,68 @@ const { setting, setSetting } = require("../util-server");
 const { Notification } = require("../notification");
 const TranslatableError = require("../translatable-error");
 const dayjs = require("dayjs");
+const parser = require("parse-whois");
+const whois = require("whois");
 
-// Load static RDAP DNS data from local file (auto-updated by CI)
-const rdapDnsData = require("./rdap-dns.json");
+// RDAP is intentionally not used; WHOIS is the sole source for domain expiry checks.
+
+const WHOIS_EXPIRY_KEYS = [
+    "Registrar Registration Expiration Date",
+    "Registry Expiry Date",
+    "Expiration Time",
+    "paid-till",
+];
 
 /**
- * Find the RDAP server for a given TLD
- * @param {string} tld TLD
- * @returns {string|null} First RDAP server found
+ * Normalize input to a hostname
+ * @param {string} input Input hostname or URL
+ * @returns {string} Normalized hostname
  */
-function getRdapServer(tld) {
-    const services = rdapDnsData["services"] ?? [];
-    const rootTld = tld?.split(".").pop();
-    if (rootTld) {
-        for (const [tlds, urls] of services) {
-            if (tlds.includes(rootTld)) {
-                return urls[0];
-            }
-        }
+function normalizeDomain(input) {
+    if (!input) {
+        return "";
     }
-    log.debug("rdap", `No RDAP server found for TLD ${tld}`);
-    return null;
+    try {
+        return new URL(input).host;
+    } catch {
+        return new URL(`http://${input}`).host;
+    }
 }
 
+
 /**
- * Request RDAP server to retrieve the expiry date of a domain
+ * Request WHOIS server to retrieve the expiry date of a domain
  * @param {string} domain Domain to retrieve the expiry date from
- * @returns {Promise<(Date|null)>} Expiry date from RDAP server
+ * @returns {Promise<(Date|null)>} Expiry date from WHOIS server
  */
-async function getRdapDomainExpiryDate(domain) {
-    const tld = DomainExpiry.parseTld(domain).publicSuffix;
-    const rdapServer = getRdapServer(tld);
-    if (rdapServer === null) {
-        log.warn("rdap", `No RDAP server found, TLD ${tld} not supported.`);
-        return null;
-    }
-    const url = `${rdapServer}domain/${domain}`;
+async function getWhoisDomainExpiryDate(domain) {
+    const normalizedDomain = normalizeDomain(domain);
 
-    let rdapInfos;
-    try {
-        const res = await fetch(url);
-        if (res.status !== 200) {
-            return null;
-        }
-        rdapInfos = await res.json();
-    } catch {
-        log.warn("rdap", "Not able to get expiry date from RDAP");
-        return null;
-    }
+    return new Promise((resolve) => {
+        whois.lookup(normalizedDomain, (err, data) => {
+            if (err) {
+                resolve(null);
+                return;
+            }
 
-    if (rdapInfos["events"] === undefined) {
-        return null;
-    }
-    for (const event of rdapInfos["events"]) {
-        if (event["eventAction"] === "expiration") {
-            return new Date(event["eventDate"]);
-        }
-    }
-    return null;
+            const parsedData = parser.parseWhoIsData(data);
+            let paidTillDate;
+
+            for (const [, param] of Object.entries(parsedData)) {
+                if (WHOIS_EXPIRY_KEYS.includes(String(param.attribute || "").trim())) {
+                    paidTillDate = new Date(param.value);
+                    break;
+                }
+            }
+
+            if (!paidTillDate || Number.isNaN(paidTillDate.getTime())) {
+                resolve(null);
+                return;
+            }
+
+            resolve(paidTillDate);
+        });
+    });
 }
 
 /**
@@ -155,21 +159,8 @@ class DomainExpiry extends BeanModel {
         if (tld.publicSuffix.length < 2) {
             throw new TranslatableError("domain_expiry_public_suffix_too_short", { publicSuffix: tld.publicSuffix });
         }
-        if (!tld.isIcann) {
-            throw new TranslatableError("domain_expiry_unsupported_is_icann", {
-                domain: tld.domain,
-                publicSuffix: tld.publicSuffix,
-            });
-        }
-
         const publicSuffix = tld.publicSuffix;
         const rootTld = publicSuffix.split(".").pop();
-        const rdap = getRdapServer(publicSuffix);
-        if (!rdap) {
-            throw new TranslatableError("domain_expiry_unsupported_unsupported_tld_no_rdap_endpoint", {
-                publicSuffix,
-            });
-        }
 
         return {
             domain: tld.domain,
@@ -197,10 +188,10 @@ class DomainExpiry extends BeanModel {
     }
 
     /**
-     * @returns {Promise<(Date|null)>} Expiry date from RDAP
+     * @returns {Promise<(Date|null)>} Expiry date from WHOIS
      */
     async getExpiryDate() {
-        return getRdapDomainExpiryDate(this.domain);
+        return getWhoisDomainExpiryDate(this.domain);
     }
 
     /**

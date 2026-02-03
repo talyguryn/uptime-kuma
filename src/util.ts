@@ -754,6 +754,7 @@ export const TYPES_WITH_DOMAIN_EXPIRY_SUPPORT_VIA_FIELD = {
     "json-query": "url",
     "real-browser": "url",
     "websocket-upgrade": "url",
+    "domain-expiry": "hostname",
     port: "hostname",
     ping: "hostname",
     "grpc-keyword": "grpcUrl",
