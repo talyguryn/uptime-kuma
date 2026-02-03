@@ -264,11 +264,29 @@
                             )
                         </p>
                         <span class="col-4 col-sm-12 num">
-                            {{ $t("days", domainInfo.daysRemaining) }}
+                            <a v-if="domainInfo.whoisInfo" href="#" @click.prevent="toggleWhoisInfoBox = !toggleWhoisInfoBox">
+                                {{ $t("days", domainInfo.daysRemaining) }}
+                            </a>
+                            <span v-else>{{ $t("days", domainInfo.daysRemaining) }}</span>
                         </span>
                     </div>
                 </div>
             </div>
+
+            <!-- WHOIS Info Box -->
+            <transition name="slide-fade" appear>
+                <div v-if="showWhoisInfoBox" class="shadow-box big-padding text-center">
+                    <h4>{{ $t("labelDomainWhoisInfo") }}</h4>
+                    <div class="row">
+                        <div v-for="(value, key) in domainInfo.whoisInfo" :key="key" class="col-12 col-sm-6">
+                            <div class="text-start">
+                                <strong>{{ key }}:</strong><br />
+                                <small class="text-muted text-break">{{ value }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
 
             <!-- Cert Info Box -->
             <transition name="slide-fade" appear>
@@ -464,6 +482,7 @@ export default {
             perPage: 25,
             heartBeatList: [],
             toggleCertInfoBox: false,
+            toggleWhoisInfoBox: false,
             showPingChartBox: true,
             paginationConfig: {
                 hideCount: true,
@@ -561,6 +580,10 @@ export default {
 
         showCertInfoBox() {
             return this.tlsInfo != null && this.toggleCertInfoBox;
+        },
+
+        showWhoisInfoBox() {
+            return this.domainInfo != null && this.domainInfo.whoisInfo != null && this.toggleWhoisInfoBox;
         },
 
         group() {

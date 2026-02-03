@@ -1408,7 +1408,17 @@ class Monitor extends BeanModel {
             const supportInfo = await DomainExpiry.checkSupport(monitor);
             const domain = await DomainExpiry.findByDomainNameOrCreate(supportInfo.domain);
             if (domain?.expiry) {
-                io.to(userID).emit("domainInfo", monitorID, domain.daysRemaining, new Date(domain.expiry));
+                let whoisInfo = null;
+                if (domain.whois_info) {
+                    try {
+                        whoisInfo = typeof domain.whois_info === "string"
+                            ? JSON.parse(domain.whois_info)
+                            : domain.whois_info;
+                    } catch (e) {
+                        log.debug("monitor", "Error parsing whois_info:", e);
+                    }
+                }
+                io.to(userID).emit("domainInfo", monitorID, domain.daysRemaining, new Date(domain.expiry), whoisInfo);
             }
         } catch (e) {}
     }

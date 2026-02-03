@@ -1374,6 +1374,7 @@
     "Webpush Helptext": "Web push only works with SSL (HTTPS) connections. For iOS devices, webpage must be added to homescreen beforehand.",
     "settingsDomainExpiry": "Domain Expiry",
     "labelDomainExpiry": "Domain Exp.",
+    "labelDomainWhoisInfo": "WHOIS Information",
     "labelDomainNameExpiryNotification": "Domain Name Expiry Notification",
     "domainExpiryDescription": "Trigger notification when domain names expires in:",
     "domain_expiry_unsupported_monitor_type": "Domain expiry monitoring is not supported for this monitor type",

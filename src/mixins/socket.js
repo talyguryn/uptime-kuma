@@ -253,8 +253,8 @@ export default {
                 this.tlsInfoList[monitorID] = JSON.parse(data);
             });
 
-            socket.on("domainInfo", (monitorID, daysRemaining, expiresOn) => {
-                this.domainInfoList[monitorID] = { daysRemaining: daysRemaining, expiresOn: expiresOn };
+            socket.on("domainInfo", (monitorID, daysRemaining, expiresOn, whoisInfo) => {
+                this.domainInfoList[monitorID] = { daysRemaining: daysRemaining, expiresOn: expiresOn, whoisInfo: whoisInfo };
             });
 
             socket.on("connect_error", (err) => {

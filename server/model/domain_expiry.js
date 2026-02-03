@@ -36,9 +36,9 @@ function normalizeDomain(input) {
 
 
 /**
- * Request WHOIS server to retrieve the expiry date of a domain
+ * Request WHOIS server to retrieve the expiry date and info of a domain
  * @param {string} domain Domain to retrieve the expiry date from
- * @returns {Promise<(Date|null)>} Expiry date from WHOIS server
+ * @returns {Promise<{expiryDate: Date|null, whoisInfo: object|null}>} Expiry date and WHOIS info from WHOIS server
  */
 async function getWhoisDomainExpiryDate(domain) {
     const normalizedDomain = normalizeDomain(domain);
@@ -46,26 +46,28 @@ async function getWhoisDomainExpiryDate(domain) {
     return new Promise((resolve) => {
         whois.lookup(normalizedDomain, (err, data) => {
             if (err) {
-                resolve(null);
+                resolve({ expiryDate: null, whoisInfo: null });
                 return;
             }
 
             const parsedData = parser.parseWhoIsData(data);
             let paidTillDate;
+            let whoisInfo = {};
 
             for (const [, param] of Object.entries(parsedData)) {
                 if (WHOIS_EXPIRY_KEYS.includes(String(param.attribute || "").trim())) {
                     paidTillDate = new Date(param.value);
-                    break;
                 }
+                // Store all WHOIS info
+                whoisInfo[param.attribute] = param.value;
             }
 
             if (!paidTillDate || Number.isNaN(paidTillDate.getTime())) {
-                resolve(null);
+                resolve({ expiryDate: null, whoisInfo });
                 return;
             }
 
-            resolve(paidTillDate);
+            resolve({ expiryDate: paidTillDate, whoisInfo });
         });
     });
 }
@@ -188,7 +190,7 @@ class DomainExpiry extends BeanModel {
     }
 
     /**
-     * @returns {Promise<(Date|null)>} Expiry date from WHOIS
+     * @returns {Promise<{expiryDate: Date|null, whoisInfo: object|null}>} Expiry date and WHOIS info from WHOIS
      */
     async getExpiryDate() {
         return getWhoisDomainExpiryDate(this.domain);
@@ -202,12 +204,15 @@ class DomainExpiry extends BeanModel {
     static async checkExpiry(domainName) {
         let bean = await DomainExpiry.findByDomainNameOrCreate(domainName);
         let expiryDate;
+        let whoisInfo;
 
         if (bean?.lastCheck && dayjs.utc(bean.lastCheck).diff(dayjs.utc(), "day") < 1) {
             log.debug("domain_expiry", `Domain expiry already checked recently for ${bean.domain}, won't re-check.`);
             return bean.expiry;
         } else if (bean) {
-            expiryDate = await bean.getExpiryDate();
+            const result = await bean.getExpiryDate();
+            expiryDate = result.expiryDate;
+            whoisInfo = result.whoisInfo;
 
             if (dayjs.utc(expiryDate).isAfter(dayjs.utc(bean.expiry))) {
                 bean.lastExpiryNotificationSent = null;
@@ -215,6 +220,7 @@ class DomainExpiry extends BeanModel {
 
             bean.expiry = R.isoDateTimeMillis(expiryDate);
             bean.lastCheck = R.isoDateTimeMillis(dayjs.utc());
+            bean.whois_info = whoisInfo ? JSON.stringify(whoisInfo) : null;
             await R.store(bean);
         }
 
